@@ -1,0 +1,97 @@
+name: Build, Notarize & Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-notarize:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import signing certificate
+        env:
+          P12_BASE64: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+
+          # Decode certificate
+          echo "$P12_BASE64" | base64 --decode > $RUNNER_TEMP/certificate.p12
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          security import $RUNNER_TEMP/certificate.p12 \
+            -P "$P12_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+      - name: Build
+        run: |
+          APP_BUNDLE="build/EasyShot.app"
+          mkdir -p "$APP_BUNDLE/Contents/MacOS"
+          mkdir -p "$APP_BUNDLE/Contents/Resources"
+          swiftc -O \
+            -o "$APP_BUNDLE/Contents/MacOS/EasyShot" \
+            Sources/EasyShot/main.swift
+          cp Info.plist "$APP_BUNDLE/Contents/"
+
+      - name: Sign with hardened runtime
+        run: |
+          codesign --force --options runtime --timestamp \
+            --sign "Developer ID Application: Skelpo GmbH (K6UW5YV9F7)" \
+            "build/EasyShot.app"
+          codesign --verify --verbose=2 "build/EasyShot.app"
+
+      - name: Create DMG
+        run: |
+          mkdir -p build/dmg-staging
+          cp -r build/EasyShot.app build/dmg-staging/
+          ln -s /Applications build/dmg-staging/Applications
+          hdiutil create -volname "EasyShot" \
+            -srcfolder build/dmg-staging \
+            -ov -format UDZO build/EasyShot.dmg
+          rm -rf build/dmg-staging
+          codesign --force --timestamp \
+            --sign "Developer ID Application: Skelpo GmbH (K6UW5YV9F7)" \
+            build/EasyShot.dmg
+
+      - name: Notarize
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: K6UW5YV9F7
+        run: |
+          xcrun notarytool submit build/EasyShot.dmg \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple build/EasyShot.dmg
+
+      - name: Upload DMG to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            build/EasyShot.dmg \
+            --clobber
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true

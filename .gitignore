@@ -1,0 +1,4 @@
+build/
+*.p12
+*.dmg
+.DS_Store
