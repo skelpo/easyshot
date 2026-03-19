@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyShot — Drag & Drop Screenshots on macOS</title>
+  <meta name="description" content="EasyShot is a free, open-source macOS menu bar app that turns screenshots into floating thumbnails you can drag anywhere.">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --purple: #6C5CE7;
+      --purple-light: #a855f7;
+      --bg: #0f0f13;
+      --surface: #1a1a22;
+      --text: #e4e4eb;
+      --text-muted: #9494a8;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--purple-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 20px 24px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--text);
+    }
+    .nav-brand img { width: 32px; height: 32px; border-radius: 7px; }
+    .nav-links { display: flex; gap: 24px; font-size: 0.9rem; }
+    .nav-links a { color: var(--text-muted); }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* Hero */
+    .hero {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .hero-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 20px;
+      margin-bottom: 32px;
+      box-shadow: 0 8px 40px rgba(108, 92, 231, 0.3);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--purple), var(--purple-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 520px;
+      margin: 0 auto 40px;
+    }
+
+    /* CTA buttons */
+    .cta-group {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple), var(--purple-light));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(108, 92, 231, 0.35);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 28px rgba(108, 92, 231, 0.5);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn-secondary:hover {
+      background: #222230;
+      color: var(--text);
+    }
+    .btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .cta-note {
+      margin-top: 14px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Demo section */
+    .demo {
+      max-width: 720px;
+      margin: 60px auto 0;
+      padding: 0 24px;
+    }
+    .demo-window {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+    .demo-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green { background: #28c840; }
+    .demo-body {
+      padding: 40px;
+      text-align: center;
+      position: relative;
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .demo-body .mock-desktop {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      opacity: 0.5;
+    }
+
+    /* Floating thumbnail mock */
+    .float-thumb {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 160px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      overflow: hidden;
+      animation: float-in 0.8s ease-out both;
+      animation-delay: 0.5s;
+    }
+    .float-thumb-img {
+      width: 100%;
+      height: 90px;
+      background: linear-gradient(135deg, #6C5CE7 0%, #a855f7 60%, #74b9ff 100%);
+    }
+    .float-thumb-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      font-size: 0.65rem;
+      color: #666;
+    }
+
+    .float-thumb-2 {
+      position: absolute;
+      bottom: 140px;
+      right: 24px;
+      width: 160px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      overflow: hidden;
+      animation: float-in 0.8s ease-out both;
+      animation-delay: 1.2s;
+    }
+    .float-thumb-2 .float-thumb-img {
+      background: linear-gradient(135deg, #00cec9, #0984e3 60%, #6c5ce7 100%);
+    }
+
+    /* Cursor following thumbnail */
+    .drag-cursor {
+      position: absolute;
+      bottom: 14px;
+      right: -8px;
+      animation: drag-hint 2s ease-in-out infinite;
+      animation-delay: 2s;
+      opacity: 0;
+    }
+    .drag-cursor svg { width: 24px; height: 24px; }
+
+    @keyframes float-in {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes drag-hint {
+      0%, 100% { opacity: 0; transform: translate(0,0); }
+      20% { opacity: 1; transform: translate(0,0); }
+      60% { opacity: 1; transform: translate(-40px, -20px); }
+      80% { opacity: 0; transform: translate(-60px, -30px); }
+    }
+
+    /* Features */
+    .features {
+      max-width: 960px;
+      margin: 80px auto 0;
+      padding: 0 24px;
+    }
+    .features h2 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 48px;
+      letter-spacing: -0.02em;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .feature-icon {
+      font-size: 1.6rem;
+      margin-bottom: 12px;
+      display: block;
+      width: 44px;
+      height: 44px;
+      line-height: 44px;
+      text-align: center;
+      background: rgba(108, 92, 231, 0.12);
+      border-radius: 10px;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Install */
+    .install {
+      max-width: 640px;
+      margin: 80px auto 0;
+      padding: 0 24px;
+    }
+    .install h2 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 32px;
+      letter-spacing: -0.02em;
+    }
+    .install-steps {
+      list-style: none;
+      counter-reset: step;
+    }
+    .install-steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      align-items: flex-start;
+    }
+    .install-steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      text-align: center;
+      background: rgba(108, 92, 231, 0.15);
+      color: var(--purple-light);
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .install-steps li div {}
+    .install-steps h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .install-steps p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    code {
+      background: rgba(108, 92, 231, 0.12);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.82rem;
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+
+    /* Open source banner */
+    .oss-banner {
+      max-width: 960px;
+      margin: 80px auto 0;
+      padding: 0 24px;
+    }
+    .oss-card {
+      background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(168, 85, 247, 0.08));
+      border: 1px solid rgba(108, 92, 231, 0.2);
+      border-radius: var(--radius);
+      padding: 40px;
+      text-align: center;
+    }
+    .oss-card h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .oss-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Footer */
+    footer {
+      max-width: 960px;
+      margin: 80px auto 0;
+      padding: 24px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer a { color: var(--text-muted); }
+    footer a:hover { color: var(--text); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero { padding: 48px 20px 40px; }
+      .cta-group { flex-direction: column; align-items: center; }
+      .btn { width: 100%; max-width: 280px; justify-content: center; }
+      .demo-body { min-height: 200px; }
+      .float-thumb, .float-thumb-2 { width: 120px; }
+      .float-thumb .float-thumb-img,
+      .float-thumb-2 .float-thumb-img { height: 65px; }
+      .float-thumb-2 { bottom: 110px; }
+      footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-brand">
+      <img src="logo.svg" alt="EasyShot logo">
+      EasyShot
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/skelpo/easyshot" target="_blank">GitHub</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <img src="logo.svg" alt="EasyShot" class="hero-logo">
+    <h1>Screenshots that <span>get out of your way</span></h1>
+    <p>A tiny, open-source macOS menu bar app that turns your screenshots into floating thumbnails you can drag anywhere.</p>
+    <div class="cta-group">
+      <a href="https://github.com/skelpo/easyshot/releases/latest" class="btn btn-primary">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 14.59V13h3l-4-4.6L8 13h3v3.59c-3.38-.49-6-3.4-6-6.93h2a5.006 5.006 0 0 0 4 4.9V17.59z" fill="none"/><path d="M16.59 9H15V3.41L12 .41 9 3.41V9H7.41L12 14l4.59-5z" transform="translate(0,5)" fill="currentColor"/></svg>
+        Download for Mac
+      </a>
+      <a href="https://github.com/skelpo/easyshot" class="btn btn-secondary" target="_blank">
+        <svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <p class="cta-note">macOS 13+ &middot; Apple Silicon & Intel &middot; Notarized DMG</p>
+  </section>
+
+  <!-- Demo mockup -->
+  <section class="demo">
+    <div class="demo-window">
+      <div class="demo-titlebar">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+      </div>
+      <div class="demo-body">
+        <span class="mock-desktop">Your Desktop</span>
+
+        <div class="float-thumb-2">
+          <div class="float-thumb-img"></div>
+          <div class="float-thumb-bar">
+            <span>Screenshot</span>
+          </div>
+        </div>
+
+        <div class="float-thumb">
+          <div class="float-thumb-img"></div>
+          <div class="float-thumb-bar">
+            <span>Screenshot</span>
+          </div>
+          <div class="drag-cursor">
+            <svg viewBox="0 0 24 24" fill="white" stroke="#000" stroke-width="1">
+              <polygon points="0,0 0,17 5,13 9,21 12,20 8,12 14,10"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <h2>Why EasyShot?</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </span>
+        <h3>Drag & Drop Anywhere</h3>
+        <p>Screenshots appear as floating thumbnails. Drag them directly into any app &mdash; Slack, Figma, email, anywhere that accepts files.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </span>
+        <h3>Instant Capture</h3>
+        <p>Replaces macOS's slow floating thumbnail with instant, always-ready previews. No more waiting for the built-in animation.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </span>
+        <h3>Lives in the Menu Bar</h3>
+        <p>Runs quietly in the background with zero UI clutter. Access settings from a simple menu bar icon.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </span>
+        <h3>Notarized & Secure</h3>
+        <p>Signed and notarized by Apple. No Gatekeeper warnings, no accessibility hacks. Just install and go.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </span>
+        <h3>Open Source</h3>
+        <p>A single Swift file, no dependencies. Read every line of code, fork it, or contribute on GitHub.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </span>
+        <h3>Multi-language Support</h3>
+        <p>Detects screenshots in English, Chinese, Japanese, and German &mdash; works with any macOS locale out of the box.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section class="install" id="install">
+    <h2>Get Started</h2>
+    <ol class="install-steps">
+      <li>
+        <div>
+          <h4>Download the DMG</h4>
+          <p>Grab the latest notarized <code>.dmg</code> from the <a href="https://github.com/skelpo/easyshot/releases/latest">releases page</a> or use the download button above.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Drag to Applications</h4>
+          <p>Open the DMG and drag <strong>EasyShot.app</strong> into your Applications folder.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Disable macOS thumbnail (recommended)</h4>
+          <p>For the best experience, turn off the built-in floating thumbnail:</p>
+          <p style="margin-top:8px"><code>defaults write com.apple.screencapture show-thumbnail -bool false && killall SystemUIServer</code></p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h4>Take a screenshot</h4>
+          <p>Press <code>Cmd+Shift+4</code> and watch the thumbnail appear. Drag it wherever you need it.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- Build from source -->
+  <section class="oss-banner">
+    <div class="oss-card">
+      <h2>Build from Source</h2>
+      <p>No Xcode project needed. Just clone and run the build script.</p>
+      <div style="text-align:left; max-width:400px; margin:0 auto;">
+        <code style="display:block; margin-bottom:6px;">git clone https://github.com/skelpo/easyshot</code>
+        <code style="display:block; margin-bottom:6px;">cd easyshot</code>
+        <code style="display:block;">./build.sh && open build/EasyShot.app</code>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>EasyShot &mdash; MIT License</span>
+    <a href="https://github.com/skelpo/easyshot" target="_blank">GitHub</a>
+  </footer>
+
+</body>
+</html>
