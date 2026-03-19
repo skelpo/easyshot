@@ -30,4 +30,4 @@ Requires Xcode Command Line Tools (`xcode-select --install`).
 
 ## License
 
-Copyright Skelpo GmbH
+[MIT](LICENSE) — Skelpo GmbH
