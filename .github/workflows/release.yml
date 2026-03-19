@@ -40,14 +40,27 @@ jobs:
           # Add to search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
 
-      - name: Build
+      - name: Build universal binary (arm64 + x86_64)
         run: |
           APP_BUNDLE="build/EasyShot.app"
           mkdir -p "$APP_BUNDLE/Contents/MacOS"
           mkdir -p "$APP_BUNDLE/Contents/Resources"
-          swiftc -O \
-            -o "$APP_BUNDLE/Contents/MacOS/EasyShot" \
+
+          swiftc -O -target arm64-apple-macosx13.0 \
+            -o "$APP_BUNDLE/Contents/MacOS/EasyShot-arm64" \
             Sources/EasyShot/main.swift
+          swiftc -O -target x86_64-apple-macosx13.0 \
+            -o "$APP_BUNDLE/Contents/MacOS/EasyShot-x86_64" \
+            Sources/EasyShot/main.swift
+
+          lipo -create \
+            "$APP_BUNDLE/Contents/MacOS/EasyShot-arm64" \
+            "$APP_BUNDLE/Contents/MacOS/EasyShot-x86_64" \
+            -output "$APP_BUNDLE/Contents/MacOS/EasyShot"
+          rm "$APP_BUNDLE/Contents/MacOS/EasyShot-arm64" \
+             "$APP_BUNDLE/Contents/MacOS/EasyShot-x86_64"
+
+          lipo -info "$APP_BUNDLE/Contents/MacOS/EasyShot"
           cp Info.plist "$APP_BUNDLE/Contents/"
 
       - name: Sign with hardened runtime

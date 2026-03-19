@@ -13,9 +13,21 @@ rm -rf "${APP_BUNDLE}" "${DMG_PATH}"
 mkdir -p "${APP_BUNDLE}/Contents/MacOS"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
-swiftc -O \
-    -o "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}" \
+swiftc -O -target arm64-apple-macosx13.0 \
+    -o "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-arm64" \
     Sources/EasyShot/main.swift
+
+swiftc -O -target x86_64-apple-macosx13.0 \
+    -o "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-x86_64" \
+    Sources/EasyShot/main.swift
+
+lipo -create \
+    "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-arm64" \
+    "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-x86_64" \
+    -output "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+
+rm "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-arm64" \
+   "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-x86_64"
 
 cp Info.plist "${APP_BUNDLE}/Contents/"
 
