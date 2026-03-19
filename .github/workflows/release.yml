@@ -62,6 +62,7 @@ jobs:
 
           lipo -info "$APP_BUNDLE/Contents/MacOS/EasyShot"
           cp Info.plist "$APP_BUNDLE/Contents/"
+          cp EasyShot.icns "$APP_BUNDLE/Contents/Resources/"
 
       - name: Sign with hardened runtime
         run: |

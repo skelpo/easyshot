@@ -30,6 +30,7 @@ rm "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-arm64" \
    "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-x86_64"
 
 cp Info.plist "${APP_BUNDLE}/Contents/"
+cp EasyShot.icns "${APP_BUNDLE}/Contents/Resources/"
 
 echo "==> Signing with hardened runtime..."
 codesign --force --options runtime --timestamp \
