@@ -4,6 +4,7 @@ set -e
 APP_NAME="EasyShot"
 BUILD_DIR="build"
 APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
+IDENTITY="Developer ID Application: Skelpo GmbH (K6UW5YV9F7)"
 
 rm -rf "${APP_BUNDLE}"
 
@@ -28,6 +29,17 @@ rm "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}-arm64" \
 
 cp Info.plist "${APP_BUNDLE}/Contents/"
 cp EasyShot.icns "${APP_BUNDLE}/Contents/Resources/"
+
+# Sign with a stable identity so macOS TCC (Files & Folders, Login Items,
+# etc.) remembers permission grants across rebuilds. Without this the Swift
+# linker's ad-hoc signature changes every build and the OS re-prompts.
+if security find-identity -v -p codesigning | grep -q "${IDENTITY}"; then
+    codesign --force --options runtime --sign "${IDENTITY}" "${APP_BUNDLE}"
+else
+    echo "WARN: '${IDENTITY}' not in keychain — falling back to ad-hoc sign."
+    echo "      TCC permissions will reset on each rebuild."
+    codesign --force --sign - "${APP_BUNDLE}"
+fi
 
 echo ""
 echo "Built: ${APP_BUNDLE}"
